@@ -254,24 +254,32 @@ test('missing stable versions get GitHub releases and existing ones are left alo
       if (String(url).endsWith('/releases/tags/v0.1.0')) return response({}, 404);
       if (String(url).endsWith('/releases/tags/v0.1.1')) return response({ tag_name: 'v0.1.1' });
       if (String(url).endsWith('/releases/tags/v0.1.2')) return response({}, 404);
+      if (String(url).endsWith('/git/refs')) return response({}, 201);
       if (String(url).endsWith('/releases')) return response({}, 201);
       throw new Error(`Unexpected request: ${url}`);
     },
   });
 
   assert.deepEqual(created, ['0.1.0', '0.1.2']);
-  const bodies = requests
-    .filter((request) => request.options.method === 'POST')
-    .map((request) => JSON.parse(request.options.body));
+  const parsed = (urlSuffix) =>
+    requests
+      .filter((request) => request.url.endsWith(urlSuffix) && request.options.method === 'POST')
+      .map((request) => JSON.parse(request.options.body));
+  assert.deepEqual(parsed('/git/refs'), [
+    { ref: 'refs/tags/v0.1.0', sha: sourceCommit },
+    { ref: 'refs/tags/v0.1.2', sha: otherCommit },
+  ]);
+  const releases = parsed('/releases');
   assert.deepEqual(
-    bodies.map((body) => [body.tag_name, body.target_commitish, body.make_latest]),
+    releases.map((body) => [body.tag_name, body.make_latest]),
     [
-      ['v0.1.0', sourceCommit, 'false'],
-      ['v0.1.2', otherCommit, 'true'],
+      ['v0.1.0', 'false'],
+      ['v0.1.2', 'true'],
     ],
   );
-  assert.equal(bodies[0].generate_release_notes, true);
-  assert.equal(bodies[0].name, '@yartasdev/pwa@0.1.0');
+  assert.equal(releases[0].target_commitish, undefined);
+  assert.match(releases[0].body, new RegExp(sourceCommit));
+  assert.equal(releases[0].name, '@yartasdev/pwa@0.1.0');
 });
 
 test('a version published in this run is released before the registry lists it', async () => {
@@ -282,6 +290,9 @@ test('a version published in this run is released before the registry lists it',
         return response(registry({ '0.1.2': { gitHead: otherCommit } }));
       }
       if (String(url).includes('/releases/tags/')) return response({}, 404);
+      if (String(url).endsWith('/git/refs')) {
+        return response({ message: 'Reference already exists' }, 422);
+      }
       if (String(url).endsWith('/releases')) return response({}, 201);
       throw new Error(`Unexpected request: ${url}`);
     },

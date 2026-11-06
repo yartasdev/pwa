@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 import { resolve } from 'node:path';
 import semver from 'semver';
@@ -53,6 +54,32 @@ function releaseCandidates(registryPackage, env) {
   return [...candidates.entries()].sort(([left], [right]) => semver.compare(left, right));
 }
 
+/**
+ * Create the tag before the release. The releases API rejects GITHUB_TOKEN with HTTP 403
+ * when target_commitish changes files under .github/workflows compared with main, because
+ * that token cannot be granted workflows:write. A tag that already exists is reused.
+ */
+async function ensureTag(repository, tag, sha, fetchImpl, headers) {
+  const response = await fetchImpl(`https://api.github.com/repos/${repository}/git/refs`, {
+    method: 'POST',
+    headers: { ...headers, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ref: `refs/tags/${tag}`, sha }),
+  });
+
+  if (response.ok) return;
+
+  const detail = await errorDetail(response);
+  if (response.status === 422 && /already exists/i.test(detail)) return;
+
+  if (response.status !== 403) {
+    throw new Error(`Cannot create tag ${tag} (HTTP ${response.status}): ${detail}`);
+  }
+
+  console.log(`Tag API denied ${tag}; creating it with git instead.`);
+  execFileSync('git', ['tag', tag, sha], { stdio: 'inherit' });
+  execFileSync('git', ['push', 'origin', `refs/tags/${tag}`], { stdio: 'inherit' });
+}
+
 /** Create a GitHub release for every stable npm version that does not have one yet. */
 export async function createMissingGitHubReleases({ env = process.env, fetchImpl = fetch } = {}) {
   validateContext(env);
@@ -81,14 +108,15 @@ export async function createMissingGitHubReleases({ env = process.env, fetchImpl
       );
     }
 
+    await ensureTag(repository, tag, sha, fetchImpl, headers);
+
     const response = await fetchImpl(`https://api.github.com/repos/${repository}/releases`, {
       method: 'POST',
       headers: { ...headers, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         tag_name: tag,
-        target_commitish: sha,
         name: `${PACKAGE_NAME}@${version}`,
-        generate_release_notes: true,
+        body: `Published [\`${PACKAGE_NAME}@${version}\`](https://www.npmjs.com/package/${PACKAGE_NAME}/v/${version}).\n\nSource commit: ${sha}`,
         make_latest: version === latest ? 'true' : 'false',
       }),
     });
