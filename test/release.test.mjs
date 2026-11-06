@@ -212,6 +212,7 @@ test('release workflow runs on main, waits for the full matrix and serializes pu
     (step) => step.run === 'npm publish --access public',
   );
   assert.equal(publish.if, "steps.release.outputs.should_publish == 'true'");
+  assert.equal(publish.env.NODE_AUTH_TOKEN, '${{ secrets.NPM_TOKEN }}');
   const ci = parse(await readFile('.github/workflows/ci.yml', 'utf8'));
   assert.deepEqual(ci.on.push['branches-ignore'], ['main']);
   assert.deepEqual(ci.on.pull_request.branches, ['main']);

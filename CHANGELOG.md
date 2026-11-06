@@ -20,4 +20,4 @@ Changes are documented here before each release. This file does not indicate tha
 - Independent opt-in config for `manifest.webmanifest` and `index.html` output.
 - Separate planning, validation, image processing and CLI modules.
 - Shared Prettier/EditorConfig formatting and a Windows/Linux CI matrix.
-- Automatic patch releases on successful main pushes, commit-based rerun detection and queued OIDC publishing.
+- Automatic patch releases on successful main pushes, commit-based rerun detection and queued publishing with `NPM_TOKEN`.

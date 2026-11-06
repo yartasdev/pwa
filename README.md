@@ -235,7 +235,7 @@ npm run release:check
 
 Every push to `main` starts the release workflow. Its Node.js 22/24 Windows/Linux matrix must pass before the publish job runs. The first release uses `package.json.version`; subsequent releases advance the highest stable npm version by one patch unless the checked-in version is already higher. Re-running a published source commit skips publishing. Repository metadata and the source commit SHA are added to the runner's package, and version changes are not committed back to `main`.
 
-The release workflow publishes using npm trusted publishing/OIDC after the GitHub repository, `npm` environment and npm trusted publisher have been configured. There is no `NPM_PUBLISH_ENABLED` switch. Pull requests and other branches run validation without publishing. See the publishing guide for the one-time setup.
+The release workflow publishes with the repository secret `NPM_TOKEN` after the GitHub repository and `npm` environment are configured. There is no `NPM_PUBLISH_ENABLED` switch. Pull requests and other branches run validation without publishing. See the publishing guide for the one-time setup.
 
 See [PUBLISHING.md](./PUBLISHING.md) for package identity, registry configuration and release setup. See [CHANGELOG.md](./CHANGELOG.md) for release notes.
 
