@@ -16,7 +16,7 @@ Changes are documented here before each release. This file does not indicate tha
 - JSON configuration, dry runs, JSON output and explicit overwrite support.
 - Input limits, bounded rendering concurrency, typed errors and output path validation.
 - Image, CLI, package installation and declaration-resolution tests.
-- Scoped package identity `@yartasdev/pwa` and English/Turkish documentation.
+- Scoped package identity `@yartasdev/pwa` and English documentation.
 - Independent opt-in config for `manifest.webmanifest` and `index.html` output.
 - Separate planning, validation, image processing and CLI modules.
 - Shared Prettier/EditorConfig formatting and a Windows/Linux CI matrix.

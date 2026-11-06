@@ -41,7 +41,7 @@
   "scripts": {
     "build": "node scripts/build.mjs",
     "typecheck": "tsc --noEmit",
-    "test": "npm run build && node --test test/*.test.mjs",
+    "test": "npm run build && node --test test/core.test.mjs test/release.test.mjs",
     "prepack": "npm run build",
     "check": "npm run format:check && npm run typecheck && npm test",
     "test:package": "npm run build && node scripts/test-package.mjs",

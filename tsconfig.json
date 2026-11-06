@@ -12,6 +12,7 @@
     "declarationMap": true,
     "rootDir": "src",
     "outDir": "dist/esm",
+    "newLine": "lf",
     "skipLibCheck": true
   },
   "include": ["src/**/*.ts"]

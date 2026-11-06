@@ -1,8 +1,8 @@
-# npm yayın rehberi
+# npm Publishing Guide
 
-Paket kimliği **`@yartasdev/pwa`**, CLI komutu **`pwa`**, ilk sürüm **`0.1.0`** olarak hazırlanmıştır. Bu hazırlık sırasında yayın yapılmadı.
+The package ID is **`@yartasdev/pwa`**, the CLI command is **`pwa`**, and the first version is **`0.1.0`**. No release was published during this preparation.
 
-## Yerel kontroller
+## Local checks
 
 ```sh
 npm ci
@@ -11,33 +11,33 @@ npm run release:check
 npm run pack:dry-run
 ```
 
-`release:check`, kaynak biçimini ve tipleri doğrular, görsel/CLI testlerini çalıştırır, arşiv içeriğini inceler ve arşivi ayrı bir tüketici projesine kurar. ESM, CommonJS, tip çözümlemesi ve kurulan CLI kontrol edilir. Bu komutlar yayın yapmaz; test kurulumu bağımlılık indirmek için registry'yi okuyabilir.
+`release:check` validates the source formatting and types, runs the visual/CLI tests, inspects the archive contents, and installs the archive into a separate consumer project. It checks ESM, CommonJS, type resolution, and the installed CLI. These commands do not publish anything; the test install may read the registry to download dependencies.
 
-Gerçek yerel arşiv için `npm pack` çalıştır. Oluşan `yartasdev-pwa-0.1.0.tgz` dosyasını başka bir projeye kurabilirsin:
+To create a real local archive, run `npm pack`. You can install the resulting `yartasdev-pwa-0.1.0.tgz` file into another project:
 
 ```sh
-npm install /gercek/yol/yartasdev-pwa-0.1.0.tgz
+npm install /real/path/to/yartasdev-pwa-0.1.0.tgz
 ```
 
-`pack:check` teknik paket doğrulamasıdır; npm hesabının scope üzerindeki yetkisini kontrol etmez. `@yartasdev` scope'una sahip hesap veya organizasyonla yayın yapmalısın.
+`pack:check` is a technical package validation; it does not check whether your npm account has permission for the scope. You must publish with an account or organization that owns the `@yartasdev` scope.
 
-## Paket ayarları
+## Package settings
 
 - `publishConfig.registry`: `https://registry.npmjs.org/`.
 - `publishConfig.access`: `public`.
-- `publishConfig.tag`: `latest`. Ön sürümler için bilinçli olarak `next` gibi ayrı bir tag seç.
-- `files`: derlenmiş ESM/CommonJS, kaynak haritaları için `src`, örnekler, README, changelog, lisans ve bu rehber.
-- `.npmrc`: registry ve lockfile ayarları; token içermez.
-- `prepublishOnly`: yayın başlatıldığında önce `release:check` çalıştırır.
-- ISC lisansı ve hak sahibi: `yartasdev`.
+- `publishConfig.tag`: `latest`. For pre-releases, deliberately choose a separate tag such as `next`.
+- `files`: compiled ESM/CommonJS, `src` for source maps, examples, README, changelog, license, and this guide.
+- `.npmrc`: registry and lockfile settings; contains no tokens.
+- `prepublishOnly`: runs `release:check` first when a publish starts.
+- License: ISC, copyright holder `yartasdev`.
 
-`files` izin listesi kullanıldığı için ayrıca `.npmignore` tutulmaz. Paket kontrolü `.env`, `.npmrc`, `.tmp`, `.github`, testler ve `node_modules` gibi geliştirme/kimlik dosyalarının arşive girmediğini doğrular.
+Because the `files` allow-list is used, no separate `.npmignore` is kept. The package check verifies that development and credential files such as `.env`, `.npmrc`, `.tmp`, `.github`, tests, and `node_modules` do not end up in the archive.
 
-Manifest ve HTML uygulama çıktılarıdır; npm metadata'sından bağımsızdır. Varsayılan üretim yalnızca 55 görseldir. Config'te `manifest: true` veya manifest nesnesi, `html: true` eklenirse `manifest.webmanifest` ve `index.html` de oluşur. Örnek config ikisini de açıkça etkinleştirir.
+The manifest and HTML are application outputs and are independent of the npm metadata. By default, generation produces only the 55 images. If `manifest: true` or a manifest object is set in the config, or `html: true` is added, `manifest.webmanifest` and `index.html` are also generated. The example config enables both explicitly.
 
-## GitHub repository oluşturulduğunda
+## When the GitHub repository is created
 
-Henüz repository olmadığı için `repository`, `homepage` ve `bugs` alanlarına hayali URL yazılmadı. Depoyu oluşturunca aşağıdaki `YOUR_REPOSITORY` ve gerekiyorsa hesap kısmını gerçek bilgilerle değiştir:
+Since there was no repository yet, no placeholder URLs were written into the `repository`, `homepage`, and `bugs` fields. Once the repository exists, replace `YOUR_REPOSITORY` and, if necessary, the account part below with the real values:
 
 ```sh
 npm pkg set "repository.type=git" "repository.url=git+https://github.com/yartasdev/YOUR_REPOSITORY.git"
@@ -47,59 +47,59 @@ npm install --package-lock-only
 npm run format
 ```
 
-GitHub kullanıcı adı npm scope'undan farklıysa repository URL'sinde gerçek GitHub hesabını kullan. CI'daki sürüm hazırlığı, gerçek `GITHUB_REPOSITORY` bilgisinden bu alanları yayın paketine otomatik olarak da ekler. Kaynak depodaki bağlantıları güncel tutmak için yukarıdaki metadata'yı yine tamamlayabilirsin. Git deposunu oluşturma, remote ekleme ve push işlemleri bu hazırlığın parçası olarak çalıştırılmadı.
+If the GitHub username differs from the npm scope, use the real GitHub account in the repository URL. The release preparation in CI automatically adds these fields to the published package from the real `GITHUB_REPOSITORY` value. You may still complete the metadata above to keep the links in the source repository up to date. Creating the Git repository, adding a remote, and pushing were not performed as part of this preparation.
 
 ## CI
 
-`.github/workflows/ci.yml`, `main` dışındaki branch push'larında, `main` hedefli pull request'lerde ve manuel çalıştırmada Node.js 22 ve 24 ile Windows/Linux matrisinde `release:check` çalıştırır. Yayın adımı içermez. `main` push'larında aynı kontroller `.github/workflows/release.yml` içinde çalışır; böylece iki ayrı CI matrisi tekrarlanmaz.
+`.github/workflows/ci.yml` runs `release:check` on Node.js 22 and 24 across a Windows/Linux matrix, for branch pushes other than `main`, for pull requests targeting `main`, and for manual runs. It contains no publish step. Pushes to `main` run the same checks inside `.github/workflows/release.yml`, so the same CI matrix is not duplicated.
 
-Biçimlendirme `.prettierrc.json` ve `.editorconfig` ile tanımlanır:
+Formatting is defined by `.prettierrc.json` and `.editorconfig`:
 
 ```sh
 npm run format
 npm run format:check
 ```
 
-## Manuel yerel yayın
+## Manual local publishing
 
-Hazır olduğunda kendi hesabınla `npm login`, `npm whoami` ve `npm view @yartasdev/pwa versions --json` ile hesabı/sürümleri kontrol et. Yeni paket için 404 dönebilir; ağ veya yetki hatalarını isim uygunluğu olarak yorumlama. Yayın için npm hesabının istediği 2FA yöntemini tamamla ve tokenları depoya ekleme.
+When you are ready, use your own account to check the account and versions with `npm login`, `npm whoami`, and `npm view @yartasdev/pwa versions --json`. A 404 may be returned for a new package; do not interpret network or permission errors as the name being available. Complete whichever 2FA method the npm account requires for publishing, and do not add tokens to the repository.
 
-`CHANGELOG.md` içindeki `Unreleased` başlığını yayın günü tarihle güncelle. Aynı ad/sürüm ikilisi tekrar yayımlanamaz; sonraki sürümlerde sürüm numarasını ve lockfile'ı birlikte güncelle. `npm version patch` Git deposunda commit/tag de oluşturabilir; bunu kendi release akışına göre seç.
+Update the `Unreleased` heading in `CHANGELOG.md` with the release date. The same name/version pair cannot be published twice; for later releases, update the version number and the lockfile together. `npm version patch` can also create a commit and tag in the Git repository; choose that according to your own release flow.
 
-**Aşağıdaki komut gerçek yayın yapar; hazırlık sırasında çalıştırılmaz:**
+**The command below performs a real publish; it is not run during preparation:**
 
 ```sh
 npm publish --access public
 ```
 
-## main üzerinde otomatik CI/CD
+## Automatic CI/CD on main
 
-`.github/workflows/release.yml`, `main` branch'ine her push'ta otomatik çalışır. İstersen `main` üzerinden `workflow_dispatch` ile de yeniden başlatabilirsin. Manuel çalıştırmada sürüm girilmez. Önceki `NPM_PUBLISH_ENABLED` kapısı kaldırıldı; yayın için değişken açmak gerekmez.
+`.github/workflows/release.yml` runs automatically on every push to the `main` branch. You can also restart it manually from `main` with `workflow_dispatch`. A manual run does not take a version input. The former `NPM_PUBLISH_ENABLED` gate has been removed; no variable needs to be enabled for publishing.
 
-Akış:
+Flow:
 
-1. Push edilen commit, Node.js 22/24 ve Windows/Linux matrisinde doğrulanır. Bir kontrol bile başarısızsa yayın işi çalışmaz.
-2. Yayın işi npm registry'den mevcut sürümleri ve kaynak commit SHA'larını okur.
-3. Aynı commit daha önce yayımlanmışsa yayın atlanır. Registry erişim, yetki veya veri hataları yeni paket olarak yorumlanmaz; işlem durur.
-4. İlk yayında `package.json.version` kullanılır. Sonrakilerde npm'deki en yüksek kararlı sürümün patch değeri artırılır: `0.1.0 → 0.1.1 → 0.1.2`.
-5. Kaynaktaki sürüm daha yüksekse, örneğin `0.2.0`, bu değer kullanılır. Major/minor geçişini bu şekilde bilinçli olarak belirleyebilirsin. Otomatik akış prerelease sürümlerini baseline olarak kabul etmez.
-6. Runner'daki `package.json` ve lockfile birlikte güncellenir. Paket, gerçek GitHub repository URL'si ve `gitHead` kaynak SHA'sını taşır.
-7. `npm publish` önce `prepublishOnly` kontrollerini güncellenmiş sürüm üzerinde çalıştırır, sonra OIDC ile npm'e yayımlar.
+1. The pushed commit is validated on Node.js 22/24 across the Windows/Linux matrix. If even one check fails, the publish job does not run.
+2. The publish job reads the existing versions and source commit SHAs from the npm registry.
+3. If the same commit was already published, the publish is skipped. Registry access, permission, or data errors are not treated as a new package; the process stops.
+4. On the first release, `package.json.version` is used. For later releases, the patch value of the highest stable version on npm is incremented: `0.1.0 → 0.1.1 → 0.1.2`.
+5. If the version in the source is higher, for example `0.2.0`, that value is used. This is how you deliberately choose a major/minor bump. The automatic flow does not accept prerelease versions as the baseline.
+6. The `package.json` and lockfile on the runner are updated together. The package carries the real GitHub repository URL and the `gitHead` source SHA.
+7. `npm publish` first runs the `prepublishOnly` checks against the updated version, then publishes to npm via OIDC.
 
-Sürüm değişikliği yalnızca geçici runner checkout'unda yapılır; `main` branch'ine bot commit'i veya Git tag'i yazılmaz. Bu yüzden kaynak sürüm her patch yayından sonra değişmeyebilir; registry'deki sürüm bir sonraki yayının temelidir. Yayın işlerini bir concurrency kuyruğu sıraya alır; çalışan iş iptal edilmez, en fazla 100 bekleyen çalışma tutulur. Tek push birden fazla commit taşıyorsa push'un en son commit'i için tek sürüm çıkar.
+The version change is made only in the temporary runner checkout; no bot commit or Git tag is written to the `main` branch. Because of this, the source version may stay the same after each patch release; the version in the registry is the base for the next release. Publish jobs are queued through a concurrency queue; a running job is not cancelled, and at most 100 pending runs are kept. If a single push contains multiple commits, one version is produced for the latest commit in the push.
 
-Workflow dışından eşzamanlı manuel yayın yapılırsa npm sürüm çakışmasını reddedebilir. Böyle bir durumda workflow'u yeniden çalıştır; başarılı önceki yayınlar SHA kontrolüyle atlanır. Başarısız npm yayını otomatik olarak farklı bir sürümle tekrar denenmez.
+If a concurrent manual publish is made outside the workflow, npm may reject the version conflict. In that case, re-run the workflow; previously successful publishes are skipped by the SHA check. A failed npm publish is not automatically retried with a different version.
 
-## GitHub ve npm'de tek seferlik kurulum
+## One-time setup on GitHub and npm
 
-1. GitHub repository'sini oluştur, bu dosyaları yükle ve çalışma branch'ini `main` olarak kullan.
-2. GitHub Settings → Environments altında `npm` environment'ını oluştur ve deployment branch'ini `main` ile sınırla. Tam otomatik yayın istiyorsan required reviewer veya bekleme kuralı ekleme.
-3. npm paket ayarlarında Trusted Publisher ekle: gerçek GitHub sahibi/depo adı, workflow dosyası `release.yml`, environment `npm`. Scope/organizasyon üzerinde yayın yetkin olmalı.
-4. Paket henüz yoksa ve npm trusted publisher ayarını yalnızca mevcut paket için sunuyorsa ilk sürümü yerelden bir kez yayımla; sonra bu ayarı tamamla. Bu hazırlıkta ilk yayın da yapılmadı.
-5. Sonraki `main` push'larında sürüm ve yayın otomatik yönetilir. İlk kurulumdan önceki başarısız çalışmayı da `main` üzerinden yeniden başlatabilirsin.
+1. Create the GitHub repository, upload these files, and use `main` as the working branch.
+2. In GitHub Settings → Environments, create an environment named `npm` and restrict its deployment branches to `main`. If you want fully automatic publishing, do not add required reviewers or wait timers.
+3. In the npm package settings, add a Trusted Publisher: the real GitHub owner/repository name, the workflow file `release.yml`, and the environment `npm`. You must have publish rights on the scope/organization.
+4. If the package does not exist yet and npm only offers the trusted publisher setting for existing packages, publish the first version once from your local machine, then complete this setting. No first publish was performed during this preparation either.
+5. For subsequent pushes to `main`, versioning and publishing are managed automatically. You can also restart a failed run from before the initial setup via `main`.
 
-Workflow npm 11 kullanır, yalnızca yayın işine `id-token: write` verir ve NPM token secret'ı istemez. `main` için branch protection ve gerekli PR kontrollerini GitHub üzerinde yapılandırabilirsin; yerel YAML, hesap/depo ayarlarını kendiliğinden oluşturamaz.
+The workflow uses npm 11, grants `id-token: write` only to the publish job, and does not require an NPM token secret. You can configure branch protection and required PR checks for `main` on GitHub; the local YAML cannot create account or repository settings by itself.
 
-Trusted publishing desteği npm ve CI ortamının gereksinimlerine bağlıdır. Public repository/public paket koşullarında npm provenance üretimini otomatik yapabilir; yerel yayında `provenance` zorunlu etkinleştirilmedi. Bu workflow bu hazırlık sırasında çalıştırılmadı ve registry üzerinde trusted publisher ayarı yapılmadı. GitHub repository ve npm hesap ayarları tamamlanana kadar dosyalar hazır olsa bile gerçek yayın başarılı olamaz.
+Trusted publishing support depends on the requirements of npm and the CI environment. For public repositories/public packages, npm can generate provenance automatically; provenance was not forcibly enabled for local publishing. This workflow was not run during this preparation, and no trusted publisher setting was made on the registry. Even if the files are ready, the actual publish cannot succeed until the GitHub repository and npm account settings are completed.
 
-Resmî kaynaklar: [package.json](https://docs.npmjs.com/cli/v11/configuring-npm/package-json/), [npm pack](https://docs.npmjs.com/cli/commands/npm-pack/), [npm publish](https://docs.npmjs.com/cli/commands/npm-publish/), [scoped public packages](https://docs.npmjs.com/creating-and-publishing-scoped-public-packages/), [trusted publishing](https://docs.npmjs.com/trusted-publishers/).
+Official sources: [package.json](https://docs.npmjs.com/cli/v11/configuring-npm/package-json/), [npm pack](https://docs.npmjs.com/cli/commands/npm-pack/), [npm publish](https://docs.npmjs.com/cli/commands/npm-publish/), [scoped public packages](https://docs.npmjs.com/creating-and-publishing-scoped-public-packages/), [trusted publishing](https://docs.npmjs.com/trusted-publishers/).
