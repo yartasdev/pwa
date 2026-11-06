@@ -42,6 +42,7 @@ jobs:
     permissions:
       contents: read
       id-token: write
+      packages: write
     steps:
       - uses: actions/checkout@v6
         with:
@@ -63,6 +64,15 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: npm publish --access public
+      # Mirror the same tarball to GitHub Packages so it appears on the repository's /packages page.
+      # --ignore-scripts reuses the dist/ output built by prepack/prepublishOnly in the step above.
+      - name: Publish the same version to GitHub Packages
+        if: steps.release.outputs.should_publish == 'true'
+        env:
+          GITHUB_PACKAGES_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          printf '//npm.pkg.github.com/:_authToken=%s\n' "$GITHUB_PACKAGES_TOKEN" > "$RUNNER_TEMP/github-packages.npmrc"
+          npm publish --registry=https://npm.pkg.github.com --userconfig "$RUNNER_TEMP/github-packages.npmrc" --ignore-scripts
       - name: Record release result
         if: success()
         env:
