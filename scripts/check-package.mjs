@@ -28,13 +28,7 @@ assert.equal(packed.status, 0, packed.stderr);
 const [archive] = JSON.parse(packed.stdout);
 const files = new Set(archive.files.map((file) => file.path));
 const allowedRoots = new Set(['dist', 'src', 'examples']);
-const allowedFiles = new Set([
-  'package.json',
-  'README.md',
-  'PUBLISHING.md',
-  'CHANGELOG.md',
-  'LICENSE',
-]);
+const allowedFiles = new Set(['package.json', 'README.md', 'CHANGELOG.md', 'LICENSE']);
 for (const path of files) {
   assert.ok(
     allowedFiles.has(path) || allowedRoots.has(path.split('/')[0]),
@@ -61,6 +55,4 @@ console.log(
   `Archive check passed: ${archive.name}@${archive.version}, ${files.size} files, ${archive.size} bytes packed.`,
 );
 if (!pkg.repository?.url)
-  console.warn(
-    'Repository metadata is pending until the GitHub repository is created; see PUBLISHING.md.',
-  );
+  console.warn('Repository metadata is pending until the GitHub repository is created.');
