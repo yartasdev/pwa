@@ -301,6 +301,31 @@ test('a version published in this run is released before the registry lists it',
   assert.deepEqual(created, ['0.1.2', '0.1.3']);
 });
 
+test('a rejected tag API falls back to pushing the existing commit', async () => {
+  const pushed = [];
+  const created = await createMissingGitHubReleases({
+    env: releaseEnv,
+    pushTag: (tag, sha) => pushed.push([tag, sha]),
+    fetchImpl: async (url) => {
+      if (String(url).startsWith('https://registry.npmjs.org/')) {
+        return response(registry({ '0.1.0': { gitHead: sourceCommit } }));
+      }
+      if (String(url).includes('/releases/tags/')) return response({}, 404);
+      if (String(url).endsWith('/git/refs')) {
+        return response(
+          { message: 'refusing to allow a GitHub App to create or update workflow' },
+          422,
+        );
+      }
+      if (String(url).endsWith('/releases')) return response({}, 201);
+      throw new Error(`Unexpected request: ${url}`);
+    },
+  });
+
+  assert.deepEqual(pushed, [['v0.1.0', sourceCommit]]);
+  assert.deepEqual(created, ['0.1.0']);
+});
+
 test('GitHub releases are not created outside the main release job', async () => {
   await assert.rejects(
     createMissingGitHubReleases({

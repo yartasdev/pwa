@@ -1,4 +1,5 @@
 import { execFileSync } from 'node:child_process';
+import { appendFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
 import { resolve } from 'node:path';
 import semver from 'semver';
@@ -54,12 +55,40 @@ function releaseCandidates(registryPackage, env) {
   return [...candidates.entries()].sort(([left], [right]) => semver.compare(left, right));
 }
 
+/** Push a tag that already points at a commit on main. The token stays out of the command line. */
+export function pushTagWithGit(tag, sha, token) {
+  const gitEnv = { ...process.env };
+  if (token) {
+    gitEnv.GIT_CONFIG_COUNT = '1';
+    gitEnv.GIT_CONFIG_KEY_0 = 'http.extraheader';
+    gitEnv.GIT_CONFIG_VALUE_0 = `AUTHORIZATION: bearer ${token}`;
+  }
+
+  const git = (args) => execFileSync('git', args, { encoding: 'utf8', env: gitEnv });
+
+  try {
+    git(['tag', tag, sha]);
+  } catch (error) {
+    const stderr = `${error.stderr ?? ''}`;
+    if (!/already exists/i.test(stderr)) {
+      throw new Error(`Cannot tag ${tag}: ${stderr || 'git tag failed'}`);
+    }
+  }
+
+  try {
+    git(['push', 'origin', `refs/tags/${tag}`]);
+  } catch (error) {
+    const stderr = `${error.stderr ?? ''}`;
+    throw new Error(`Cannot push ${tag}: ${stderr || 'git push failed'}`);
+  }
+}
+
 /**
- * Create the tag before the release. The releases API rejects GITHUB_TOKEN with HTTP 403
- * when target_commitish changes files under .github/workflows compared with main, because
- * that token cannot be granted workflows:write. A tag that already exists is reused.
+ * Create the tag before the release. The releases API returns 403 for GITHUB_TOKEN when it
+ * has to create a tag whose commit differs under .github/workflows from main. Pushing that
+ * tag with git, then creating the release against the existing tag, avoids that check.
  */
-async function ensureTag(repository, tag, sha, fetchImpl, headers) {
+async function ensureTag(repository, tag, sha, fetchImpl, headers, pushTag) {
   const response = await fetchImpl(`https://api.github.com/repos/${repository}/git/refs`, {
     method: 'POST',
     headers: { ...headers, 'Content-Type': 'application/json' },
@@ -71,17 +100,16 @@ async function ensureTag(repository, tag, sha, fetchImpl, headers) {
   const detail = await errorDetail(response);
   if (response.status === 422 && /already exists/i.test(detail)) return;
 
-  if (response.status !== 403) {
-    throw new Error(`Cannot create tag ${tag} (HTTP ${response.status}): ${detail}`);
-  }
-
-  console.log(`Tag API denied ${tag}; creating it with git instead.`);
-  execFileSync('git', ['tag', tag, sha], { stdio: 'inherit' });
-  execFileSync('git', ['push', 'origin', `refs/tags/${tag}`], { stdio: 'inherit' });
+  console.log(`Tag API could not create ${tag} (HTTP ${response.status}): ${detail}`);
+  pushTag(tag, sha);
 }
 
 /** Create a GitHub release for every stable npm version that does not have one yet. */
-export async function createMissingGitHubReleases({ env = process.env, fetchImpl = fetch } = {}) {
+export async function createMissingGitHubReleases({
+  env = process.env,
+  fetchImpl = fetch,
+  pushTag = (tag, sha) => pushTagWithGit(tag, sha, env.GH_TOKEN),
+} = {}) {
   validateContext(env);
 
   const headers = {
@@ -93,47 +121,87 @@ export async function createMissingGitHubReleases({ env = process.env, fetchImpl
   const candidates = releaseCandidates(await readRegistryPackage(fetchImpl), env);
   const latest = candidates.at(-1)?.[0];
   const created = [];
+  const failures = [];
 
   for (const [version, sha] of candidates) {
     const tag = `v${version}`;
-    const existing = await fetchImpl(
-      `https://api.github.com/repos/${repository}/releases/tags/${tag}`,
-      { headers },
-    );
+    try {
+      const didCreate = await createReleaseForVersion({
+        version,
+        sha,
+        tag,
+        latest,
+        repository,
+        headers,
+        fetchImpl,
+        pushTag,
+      });
+      if (didCreate) created.push(version);
+    } catch (error) {
+      const message = `${tag}: ${error.message}`;
+      failures.push(message);
+      console.log(`::error::${message}`);
+    }
+  }
 
-    if (existing.ok) continue;
-    if (existing.status !== 404) {
-      throw new Error(
-        `Cannot read GitHub release ${tag} (HTTP ${existing.status}): ${await errorDetail(existing)}`,
+  if (failures.length > 0) {
+    if (env.GITHUB_STEP_SUMMARY) {
+      await appendFile(
+        env.GITHUB_STEP_SUMMARY,
+        failures.map((failure) => `- ${failure}`).join('\n') + '\n',
       );
     }
-
-    await ensureTag(repository, tag, sha, fetchImpl, headers);
-
-    const response = await fetchImpl(`https://api.github.com/repos/${repository}/releases`, {
-      method: 'POST',
-      headers: { ...headers, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        tag_name: tag,
-        name: `${PACKAGE_NAME}@${version}`,
-        body: `Published [\`${PACKAGE_NAME}@${version}\`](https://www.npmjs.com/package/${PACKAGE_NAME}/v/${version}).\n\nSource commit: ${sha}`,
-        make_latest: version === latest ? 'true' : 'false',
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error(
-        `Cannot create GitHub release ${tag} (HTTP ${response.status}): ${await errorDetail(response)}`,
-      );
-    }
-
-    created.push(version);
-    console.log(`Created GitHub release ${PACKAGE_NAME}@${version}`);
+    throw new Error(failures.join('\n'));
   }
 
   if (created.length === 0)
     console.log('GitHub releases already exist for every published version.');
   return created;
+}
+
+async function createReleaseForVersion({
+  version,
+  sha,
+  tag,
+  latest,
+  repository,
+  headers,
+  fetchImpl,
+  pushTag,
+}) {
+  const existing = await fetchImpl(
+    `https://api.github.com/repos/${repository}/releases/tags/${tag}`,
+    { headers },
+  );
+
+  if (existing.ok) return false;
+  if (existing.status !== 404) {
+    throw new Error(
+      `Cannot read GitHub release ${tag} (HTTP ${existing.status}): ${await errorDetail(existing)}`,
+    );
+  }
+
+  await ensureTag(repository, tag, sha, fetchImpl, headers, pushTag);
+
+  const response = await fetchImpl(`https://api.github.com/repos/${repository}/releases`, {
+    method: 'POST',
+    headers: { ...headers, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      tag_name: tag,
+      name: `${PACKAGE_NAME}@${version}`,
+      body: `Published [\`${PACKAGE_NAME}@${version}\`](https://www.npmjs.com/package/${PACKAGE_NAME}/v/${version}).\n\nSource commit: ${sha}`,
+      make_latest: version === latest ? 'true' : 'false',
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(
+      `Cannot create GitHub release ${tag} (HTTP ${response.status}): ${await errorDetail(response)}`,
+    );
+  }
+
+  console.log(`Created GitHub release ${PACKAGE_NAME}@${version}`);
+  return true;
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
