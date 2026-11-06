@@ -21,3 +21,4 @@ Changes are documented here before each release. This file does not indicate tha
 - Separate planning, validation, image processing and CLI modules.
 - Shared Prettier/EditorConfig formatting and a Windows/Linux CI matrix.
 - Automatic patch releases on successful main pushes, commit-based rerun detection and queued publishing with `NPM_TOKEN`.
+- A GitHub release tagged `v<version>` for each published version.

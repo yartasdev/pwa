@@ -204,7 +204,8 @@ test('release workflow runs on main, waits for the full matrix and serializes pu
   assert.deepEqual(workflow.jobs.validate.strategy.matrix.node, [22, 24]);
   assert.deepEqual(workflow.jobs.validate.strategy.matrix.os, ['ubuntu-latest', 'windows-latest']);
   assert.equal(workflow.jobs.publish.permissions['id-token'], 'write');
-  assert.equal(workflow.jobs.publish.permissions.contents, 'read');
+  assert.equal(workflow.jobs.publish.permissions.contents, 'write');
+  assert.equal(workflow.jobs.publish.permissions.packages, 'write');
   assert.equal(workflow.jobs.publish.environment, 'npm');
   assert.ok(!JSON.stringify(workflow).includes('NPM_PUBLISH_ENABLED'));
 
@@ -213,6 +214,12 @@ test('release workflow runs on main, waits for the full matrix and serializes pu
   );
   assert.equal(publish.if, "steps.release.outputs.should_publish == 'true'");
   assert.equal(publish.env.NODE_AUTH_TOKEN, '${{ secrets.NPM_TOKEN }}');
+  const githubRelease = workflow.jobs.publish.steps.find(
+    (step) => step.name === 'Create GitHub release',
+  );
+  assert.equal(githubRelease.if, "steps.release.outputs.should_publish == 'true'");
+  assert.equal(githubRelease.env.GH_TOKEN, '${{ secrets.GITHUB_TOKEN }}');
+  assert.match(githubRelease.run, /gh release create "v\$\{RELEASE_VERSION\}"/);
   const ci = parse(await readFile('.github/workflows/ci.yml', 'utf8'));
   assert.deepEqual(ci.on.push['branches-ignore'], ['main']);
   assert.deepEqual(ci.on.pull_request.branches, ['main']);
