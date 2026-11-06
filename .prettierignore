@@ -3,3 +3,5 @@ dist/
 .tmp/
 package-lock.json
 *.tgz
+docs/.vitepress/dist
+docs/.vitepress/cache

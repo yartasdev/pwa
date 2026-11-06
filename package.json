@@ -46,6 +46,9 @@
     "check": "npm run format:check && npm run typecheck && npm test",
     "test:package": "npm run build && node scripts/test-package.mjs",
     "preview": "npm run build && node scripts/preview.mjs",
+    "docs:dev": "vitepress dev docs",
+    "docs:build": "vitepress build docs",
+    "docs:preview": "vitepress preview docs",
     "pack:check": "npm run build && node scripts/check-package.mjs",
     "pack:dry-run": "npm pack --dry-run --cache .tmp/npm-cache",
     "release:check": "npm run check && node scripts/check-package.mjs && node scripts/test-package.mjs",
@@ -76,6 +79,7 @@
     "prettier": "^3.9.10",
     "semver": "^7.8.6",
     "typescript": "^7.0.2",
+    "vitepress": "^1.6.4",
     "yaml": "^2.9.1"
   }
 }
