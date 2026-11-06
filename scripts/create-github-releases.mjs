@@ -21,6 +21,18 @@ function validateContext(env) {
   }
 }
 
+/** GitHub error bodies explain permission and validation failures; keep them in the job log. */
+async function errorDetail(response) {
+  const text = await response.text().catch(() => '');
+  try {
+    const body = JSON.parse(text);
+    const details = Array.isArray(body.errors) ? ` ${JSON.stringify(body.errors)}` : '';
+    return `${body.message ?? 'no message'}${details}`;
+  } catch {
+    return text.slice(0, 500) || 'empty response';
+  }
+}
+
 function releaseCandidates(registryPackage, env) {
   const candidates = new Map();
 
@@ -64,7 +76,9 @@ export async function createMissingGitHubReleases({ env = process.env, fetchImpl
 
     if (existing.ok) continue;
     if (existing.status !== 404) {
-      throw new Error(`Cannot read GitHub release ${tag} (HTTP ${existing.status}).`);
+      throw new Error(
+        `Cannot read GitHub release ${tag} (HTTP ${existing.status}): ${await errorDetail(existing)}`,
+      );
     }
 
     const response = await fetchImpl(`https://api.github.com/repos/${repository}/releases`, {
@@ -80,7 +94,9 @@ export async function createMissingGitHubReleases({ env = process.env, fetchImpl
     });
 
     if (!response.ok) {
-      throw new Error(`Cannot create GitHub release ${tag} (HTTP ${response.status}).`);
+      throw new Error(
+        `Cannot create GitHub release ${tag} (HTTP ${response.status}): ${await errorDetail(response)}`,
+      );
     }
 
     created.push(version);
