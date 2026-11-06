@@ -138,7 +138,12 @@ export async function createMissingGitHubReleases({
       });
       if (didCreate) created.push(version);
     } catch (error) {
-      const message = `${tag}: ${error.message}`;
+      const message = `${tag}: ${error.message}`.replace(/\s+/g, ' ');
+      // GITHUB_TOKEN cannot tag an older commit whose workflow files differ from main.
+      if (sha !== env.GITHUB_SHA) {
+        console.log(`::warning::Skipping ${message}`);
+        continue;
+      }
       failures.push(message);
       console.log(`::error::${message}`);
     }

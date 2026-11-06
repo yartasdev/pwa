@@ -326,6 +326,38 @@ test('a rejected tag API falls back to pushing the existing commit', async () =>
   assert.deepEqual(created, ['0.1.0']);
 });
 
+test('an older commit that cannot be tagged does not fail the current release', async () => {
+  const created = await createMissingGitHubReleases({
+    env: { ...releaseEnv, GITHUB_SHA: otherCommit },
+    pushTag: (tag) => {
+      if (tag === 'v0.1.0') {
+        throw new Error('Cannot push v0.1.0: refusing to update workflow files');
+      }
+    },
+    fetchImpl: async (url) => {
+      if (String(url).startsWith('https://registry.npmjs.org/')) {
+        return response(
+          registry({
+            '0.1.0': { gitHead: sourceCommit },
+            '0.1.2': { gitHead: otherCommit },
+          }),
+        );
+      }
+      if (String(url).includes('/releases/tags/')) return response({}, 404);
+      if (String(url).endsWith('/git/refs')) {
+        return response(
+          { message: 'refusing to allow a GitHub App to create or update workflow' },
+          422,
+        );
+      }
+      if (String(url).endsWith('/releases')) return response({}, 201);
+      throw new Error(`Unexpected request: ${url}`);
+    },
+  });
+
+  assert.deepEqual(created, ['0.1.2']);
+});
+
 test('GitHub releases are not created outside the main release job', async () => {
   await assert.rejects(
     createMissingGitHubReleases({
