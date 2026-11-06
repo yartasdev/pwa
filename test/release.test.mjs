@@ -4,6 +4,7 @@ import { mkdtemp, readFile, writeFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { parse } from 'yaml';
+import { createMissingGitHubReleases } from '../scripts/create-github-releases.mjs';
 import { prepareRelease } from '../scripts/prepare-release.mjs';
 import {
   PACKAGE_NAME,
@@ -215,12 +216,85 @@ test('release workflow runs on main, waits for the full matrix and serializes pu
   assert.equal(publish.if, "steps.release.outputs.should_publish == 'true'");
   assert.equal(publish.env.NODE_AUTH_TOKEN, '${{ secrets.NPM_TOKEN }}');
   const githubRelease = workflow.jobs.publish.steps.find(
-    (step) => step.name === 'Create GitHub release',
+    (step) => step.name === 'Create GitHub releases',
   );
-  assert.equal(githubRelease.if, "steps.release.outputs.should_publish == 'true'");
+  assert.equal(githubRelease.if, undefined);
   assert.equal(githubRelease.env.GH_TOKEN, '${{ secrets.GITHUB_TOKEN }}');
-  assert.match(githubRelease.run, /gh release create "v\$\{RELEASE_VERSION\}"/);
+  assert.equal(githubRelease.run, 'node scripts/create-github-releases.mjs');
   const ci = parse(await readFile('.github/workflows/ci.yml', 'utf8'));
   assert.deepEqual(ci.on.push['branches-ignore'], ['main']);
   assert.deepEqual(ci.on.pull_request.branches, ['main']);
+});
+
+const releaseEnv = {
+  GITHUB_ACTIONS: 'true',
+  GITHUB_REF: 'refs/heads/main',
+  GITHUB_REPOSITORY: 'yartasdev/pwa',
+  GH_TOKEN: 'token',
+  GITHUB_SHA: 'c'.repeat(40),
+  SHOULD_PUBLISH: 'false',
+};
+
+test('missing stable versions get GitHub releases and existing ones are left alone', async () => {
+  const requests = [];
+  const created = await createMissingGitHubReleases({
+    env: releaseEnv,
+    fetchImpl: async (url, options = {}) => {
+      requests.push({ url: String(url), options });
+      if (String(url).startsWith('https://registry.npmjs.org/')) {
+        return response(
+          registry({
+            '0.0.0-stage': {},
+            '0.1.0': { gitHead: sourceCommit },
+            '0.1.2': { gitHead: otherCommit },
+            '0.1.1': { gitHead: 'd'.repeat(40) },
+          }),
+        );
+      }
+      if (String(url).endsWith('/releases/tags/v0.1.0')) return response({}, 404);
+      if (String(url).endsWith('/releases/tags/v0.1.1')) return response({ tag_name: 'v0.1.1' });
+      if (String(url).endsWith('/releases/tags/v0.1.2')) return response({}, 404);
+      if (String(url).endsWith('/releases')) return response({}, 201);
+      throw new Error(`Unexpected request: ${url}`);
+    },
+  });
+
+  assert.deepEqual(created, ['0.1.0', '0.1.2']);
+  const bodies = requests
+    .filter((request) => request.options.method === 'POST')
+    .map((request) => JSON.parse(request.options.body));
+  assert.deepEqual(
+    bodies.map((body) => [body.tag_name, body.target_commitish, body.make_latest]),
+    [
+      ['v0.1.0', sourceCommit, 'false'],
+      ['v0.1.2', otherCommit, 'true'],
+    ],
+  );
+  assert.equal(bodies[0].generate_release_notes, true);
+  assert.equal(bodies[0].name, '@yartasdev/pwa@0.1.0');
+});
+
+test('a version published in this run is released before the registry lists it', async () => {
+  const created = await createMissingGitHubReleases({
+    env: { ...releaseEnv, SHOULD_PUBLISH: 'true', RELEASE_VERSION: '0.1.3' },
+    fetchImpl: async (url) => {
+      if (String(url).startsWith('https://registry.npmjs.org/')) {
+        return response(registry({ '0.1.2': { gitHead: otherCommit } }));
+      }
+      if (String(url).includes('/releases/tags/')) return response({}, 404);
+      if (String(url).endsWith('/releases')) return response({}, 201);
+      throw new Error(`Unexpected request: ${url}`);
+    },
+  });
+
+  assert.deepEqual(created, ['0.1.2', '0.1.3']);
+});
+
+test('GitHub releases are not created outside the main release job', async () => {
+  await assert.rejects(
+    createMissingGitHubReleases({
+      env: { ...releaseEnv, GITHUB_ACTIONS: 'false' },
+      fetchImpl: () => assert.fail('Registry must not be contacted.'),
+    }),
+  );
 });

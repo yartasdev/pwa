@@ -73,16 +73,13 @@ jobs:
         run: |
           printf '//npm.pkg.github.com/:_authToken=%s\n' "$GITHUB_PACKAGES_TOKEN" > "$RUNNER_TEMP/github-packages.npmrc"
           npm publish --registry=https://npm.pkg.github.com --userconfig "$RUNNER_TEMP/github-packages.npmrc" --ignore-scripts
-      - name: Create GitHub release
-        if: steps.release.outputs.should_publish == 'true'
+      # Also fills releases missing from versions that were published before this step existed.
+      - name: Create GitHub releases
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_VERSION: ${{ steps.release.outputs.version }}
-        run: >
-          gh release create "v${RELEASE_VERSION}"
-          --target "${GITHUB_SHA}"
-          --title "@yartasdev/pwa@${RELEASE_VERSION}"
-          --generate-notes
+          SHOULD_PUBLISH: ${{ steps.release.outputs.should_publish }}
+        run: node scripts/create-github-releases.mjs
       - name: Record release result
         if: success()
         env:
