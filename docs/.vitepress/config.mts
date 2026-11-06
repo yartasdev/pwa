@@ -1,9 +1,16 @@
 import { defineConfig } from 'vitepress';
 
+const base = '/pwa/';
+
 export default defineConfig({
   title: '@yartasdev/pwa',
   description: 'Generate PWA icons, Apple touch icons and iOS splash screens from a single image.',
-  base: '/pwa/',
+  base,
+  head: [
+    ['link', { rel: 'icon', type: 'image/svg+xml', href: `${base}favicon.svg` }],
+    ['link', { rel: 'icon', type: 'image/png', sizes: '32x32', href: `${base}favicon-32x32.png` }],
+    ['link', { rel: 'icon', href: `${base}favicon.ico` }],
+  ],
   lang: 'en-US',
   cleanUrls: true,
   lastUpdated: true,
