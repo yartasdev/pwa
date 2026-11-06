@@ -1,6 +1,6 @@
 # @yartasdev/pwa
 
-[Documentation](https://yartasdev.github.io/pwa/) · [Publishing guide](./PUBLISHING.md)
+[Documentation](https://yartasdev.github.io/pwa/)
 
 Generate PWA icons, Apple touch icons and iOS splash screens from a single image. Built with TypeScript and [Sharp](https://sharp.pixelplumbing.com/), with a shared programmatic API and CLI.
 
