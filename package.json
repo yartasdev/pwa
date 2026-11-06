@@ -1,0 +1,81 @@
+{
+  "name": "@yartasdev/pwa",
+  "version": "0.1.0",
+  "description": "Generate PWA icons, Apple startup images, manifests and HTML with Sharp.",
+  "main": "./dist/cjs/index.js",
+  "module": "./dist/esm/index.js",
+  "types": "./dist/esm/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/esm/index.d.ts",
+        "default": "./dist/esm/index.js"
+      },
+      "require": {
+        "types": "./dist/cjs/index.d.ts",
+        "default": "./dist/cjs/index.js"
+      }
+    },
+    "./package.json": "./package.json"
+  },
+  "bin": {
+    "pwa": "./dist/esm/cli.js"
+  },
+  "files": [
+    "dist",
+    "src",
+    "README.md",
+    "CHANGELOG.md",
+    "PUBLISHING.md",
+    "examples",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/",
+    "tag": "latest"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "npm run build && node --test test/*.test.mjs",
+    "prepack": "npm run build",
+    "check": "npm run format:check && npm run typecheck && npm test",
+    "test:package": "npm run build && node scripts/test-package.mjs",
+    "preview": "npm run build && node scripts/preview.mjs",
+    "pack:check": "npm run build && node scripts/check-package.mjs",
+    "pack:dry-run": "npm pack --dry-run --cache .tmp/npm-cache",
+    "release:check": "npm run check && node scripts/check-package.mjs && node scripts/test-package.mjs",
+    "prepublishOnly": "npm run release:check",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "keywords": [
+    "pwa",
+    "icons",
+    "splash",
+    "sharp",
+    "cli",
+    "typescript",
+    "apple-touch-icon",
+    "maskable",
+    "favicon",
+    "ios"
+  ],
+  "author": "yartasdev",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "@types/node": "^22.20.5",
+    "sharp": "^0.35.5"
+  },
+  "devDependencies": {
+    "prettier": "^3.9.10",
+    "semver": "^7.8.6",
+    "typescript": "^7.0.2",
+    "yaml": "^2.9.1"
+  }
+}

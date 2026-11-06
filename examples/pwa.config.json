@@ -1,0 +1,26 @@
+{
+  "input": "./logo.svg",
+  "outDir": "../.tmp/example-assets",
+  "publicPath": "/pwa/",
+  "background": "#f1f5f9",
+  "icons": {
+    "maskable": true,
+    "maskableBackground": "#f1f5f9",
+    "ico": true,
+    "padding": 0.05
+  },
+  "splash": {
+    "preset": "ios",
+    "logoScale": 0.25,
+    "background": "#f1f5f9",
+    "darkBackground": "#0f172a"
+  },
+  "html": true,
+  "manifest": {
+    "name": "Example PWA",
+    "short_name": "Example",
+    "start_url": "/",
+    "display": "standalone",
+    "theme_color": "#2563eb"
+  }
+}

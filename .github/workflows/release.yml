@@ -1,0 +1,74 @@
+name: Release to npm
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: npm-release-main
+  cancel-in-progress: false
+  queue: max
+
+jobs:
+  validate:
+    if: github.ref == 'refs/heads/main'
+    name: Node ${{ matrix.node }} on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        node: [22, 24]
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - run: npm ci
+      - run: npm run release:check
+
+  publish:
+    if: github.ref == 'refs/heads/main'
+    needs: validate
+    runs-on: ubuntu-latest
+    environment: npm
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+          cache: npm
+      - name: Install npm with trusted publishing support
+        run: npm install --global npm@11
+      - run: npm ci
+      - name: Select version and prepare release metadata
+        id: release
+        run: node scripts/prepare-release.mjs
+      - name: Publish the next version using OIDC
+        if: steps.release.outputs.should_publish == 'true'
+        # prepublishOnly validates the prepared version before npm uploads anything.
+        run: npm publish --access public
+      - name: Record release result
+        if: success()
+        env:
+          RELEASE_VERSION: ${{ steps.release.outputs.version }}
+          SHOULD_PUBLISH: ${{ steps.release.outputs.should_publish }}
+        run: >-
+          node --input-type=module -e
+          "import fs from 'node:fs';
+          const result = process.env.SHOULD_PUBLISH === 'true' ? 'Published' : 'Already published; skipped';
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,
+          result + ': @yartasdev/pwa@' + process.env.RELEASE_VERSION + '\nSource commit: ' + process.env.GITHUB_SHA + '\n');"
